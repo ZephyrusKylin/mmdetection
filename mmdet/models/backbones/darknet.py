@@ -7,6 +7,8 @@ from mmcv.cnn import ConvModule
 from mmcv.runner import BaseModule
 from torch.nn.modules.batchnorm import _BatchNorm
 
+from mmdet.models.utils.yolov5_common import Focus
+from mmdet.models.utils.make_divisible import make_divisible
 from ..builder import BACKBONES
 
 
@@ -210,3 +212,71 @@ class Darknet(BaseModule):
             model.add_module('res{}'.format(idx),
                              ResBlock(out_channels, **cfg))
         return model
+
+@BACKBONES.register_module()
+class Darknet_v5(BaseModule):
+    stages_repeats = [1, 3, 9, 9, 1]
+    stages_channels = [64, 128, 256, 512, 1024]
+
+    def __init__(self,
+                depth_multiple,
+                width_multiple,
+                out_indices=(3, 4, 5),
+                frozen_stages=-1,
+                round_nearest=8,
+                conv_cfg=None,
+                norm_cfg=dict(type='BN', requires_grad=True),
+                act_cfg=dict(type='SiLU'),
+                norm_eval=True,
+                pretrained=None,
+                init_cfg=None):
+        super().__init__(init_cfg)
+
+        self.out_indices = out_indices
+        self.frozen_stages = frozen_stages
+
+        cfg = dict(conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+
+        # building first layer
+        assert self.stages_repeats[0] == 1
+        assert len(self.stages_repeats) == len(self.stages_channels)
+
+        output_channel =self.stages_channels[0]
+
+        output_channel = make_divisible(output_channel * width_multiple, round_nearest)
+        self.conv1 = Focus(3, output_channel, 3, padding=1, **cfg)
+        self.cr_blocks = ['conv1']
+        input_channel = output_channel
+        # building CSP blocks
+        for i, (num_stages, out_channel) in enumerate(zip(self.stages_repeats[1:-1], self.stages_channels[1:-1])):
+            layer_name = f'conv_res_block{i + 1}'
+
+            num_stages = max(round(num_stages * depth_multiple), 1)
+            out_channel = make_divisible(out_channel * width_multiple, round_nearest)
+
+            self.add_module(
+                layer_name,
+                self.make_conv_CSP_block(input_channel, out_channel, num_stages, **cfg))
+            self.cr_blocks.append(layer_name)
+            input_channel = out_channel
+
+        # building last CSP blocks
+        
+
+        assert not (init_cfg and pretrained), \
+            'init_cfg and pretrained cannot be setting at the same time'
+        if isinstance(pretrained, str):
+            warnings.warn('DeprecationWarning: pretrained is deprecated, '
+                          'please use "init_cfg" instead')
+            self.init_cfg = dict(type='Pretrained', checkpoint=pretrained)
+        elif pretrained is None:
+            if init_cfg is None:
+                self.init_cfg = [
+                    dict(type='Kaiming', layer='Conv2d'),
+                    dict(
+                        type='Constant',
+                        val=1,
+                        layer=['_BatchNorm', 'GroupNorm'])
+                ]
+        else:
+            raise TypeError('pretrained must be a str or None')
