@@ -23,7 +23,7 @@ def autopad(kernel_size, padding=None):  # kernel, padding
 class Focus(nn.module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=None, groups=1, conv_cfg=None, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='SiLU')):
         super().__init__()
-        self.conv_focus = ConvModule(in_channels * 4, out_channels, kernel_size, stride, padding, groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.conv_focus = ConvModule(in_channels * 4, out_channels, kernel_size, stride, autopad(kernel_size, padding), groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
     
     def forward(self, x):
         y = self._focus_transform(x)
@@ -108,20 +108,32 @@ class SwitchableBatchNorm2d(nn.Module):
 
 class Bottleneck(nn.Module):
     # Standard bottleneck
-    def __init__(self, in_channel, out_channel, shortcut=True, groups=1, expansion=0.5):  # ch_in, ch_out, shortcut, groups, expansion
+    def __init__(self, in_channel, out_channel, shortcut=True, padding=None, groups=1, expansion=0.5, conv_cfg=dict(type='USConv'), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='LeakyReLU', negative_slope=0.1)):  # ch_in, ch_out, shortcut, groups, expansion
         super(Bottleneck, self).__init__()
         hidden_channel = int(out_channel * expansion)  # hidden channels
-        self.conv1 = ConvModule(in_channel, hidden_channel, 1, 1, conv_cfg=dict(type='USConv'), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='LeakyReLU', negative_slope=0.1))
-        self.conv2 = ConvModule(hidden_channel, out_channel, 3, 1, groups=groups, conv_cfg=dict(type='USConv'), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='LeakyReLU', negative_slope=0.1))
+        self.conv1 = ConvModule(in_channel, hidden_channel, 1, 1, autopad(1, padding), conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.conv2 = ConvModule(hidden_channel, out_channel, 3, 1, autopad(3, padding), groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
         self.add = shortcut and in_channel == out_channel
 
     def forward(self, x):
         return x + self.conv2(self.conv1(x)) if self.add else self.conv2(self.conv1(x))
 
 class BottleneckCSP(nn.Module):
-    def __init__(self, input_channel, output_channel, bottle_nums=1, shortcut=True, ratio=1, groups=1, expand=0.5, conv_cfg=None, norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='SiLU')):
+    def __init__(self, input_channel, output_channel, WIDTH_LIST, bottle_nums=1, shortcut=True, padding=None, groups=1, expand=0.5, conv_cfg=dict(type='USConv', ratio=[2, 1]), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='SiLU')):
         super(BottleneckCSP, self).__init__()
 
         hidden_channel = int(output_channel * expand)
-        self.ratio = ratio
-        
+
+        self.conv1 = ConvModule(input_channel, hidden_channel, 1, 1,padding=autopad(1, padding), conv_cfg=dict(type='USConv', ratio=[1, 1]), norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.conv2 = ConvModule(input_channel, hidden_channel, 1, 1,padding=None, conv_cfg=dict(type='Conv'), norm_cfg=None, act_cfg=None)
+        self.conv3 = ConvModule(hidden_channel, hidden_channel, 1, 1,padding=None, conv_cfg=dict(type='Conv'), norm_cfg=None, act_cfg=None)
+        self.conv4 = ConvModule(hidden_channel * 2, output_channel, 1, 1,padding=autopad(1, padding), conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.bn = SwitchableBatchNorm2d(hidden_channel * 2, WIDTH_LIST, 2)
+        self.act = nn.LeakyReLU(0.1, inplace=True)
+        self.layers = nn.Sequential(*[Bottleneck(hidden_channel, hidden_channel, shortcut, groups, expand=1.0) for _ in range(bottle_nums)])
+    
+    def forward(self, x):
+        y0=self.conv1(x)
+        y1 = self.conv3(self.layers(y0))
+        y2 = self.conv2(x)
+        return self.conv4(self.act(self.bn(torch.cat((y1, y2), dim=1))))
