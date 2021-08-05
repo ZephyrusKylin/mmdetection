@@ -9,7 +9,6 @@ from .res_layer import ResLayer, SimplifiedBasicBlock
 from .se_layer import SELayer
 from .transformer import (DetrTransformerDecoder, DetrTransformerDecoderLayer,
                           DynamicConv, Transformer)
-from .yolov5_common import Focus, USConv, BottleneckCSP
 
 __all__ = [
     'ResLayer', 'gaussian_radius', 'gen_gaussian_target',
@@ -17,5 +16,5 @@ __all__ = [
     'build_transformer', 'build_linear_layer', 'build_YOLO', 'SinePositionalEncoding',
     'LearnedPositionalEncoding', 'DynamicConv', 'SimplifiedBasicBlock',
     'NormedLinear', 'NormedConv2d', 'make_divisible', 'InvertedResidual',
-    'SELayer', 'Focus', 'USConv', 'BottleneckCSP'
+    'SELayer'
 ]
