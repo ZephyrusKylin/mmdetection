@@ -14,6 +14,7 @@ from mmdet.models.utils.make_divisible import make_divisible
 #     def forward(self, x):
 #         return nn.SiLU(x, self.inplace)
 ACTIVATION_LAYERS.register_module('SiLU', module=nn.SiLU)
+ACTIVATION_LAYERS.register_module('Hardswish', module=nn.Hardswish)
 
 def autopad(kernel_size, padding=None):  # kernel, padding
     # Pad to 'same'
@@ -96,7 +97,7 @@ class SwitchableBatchNorm2d(nn.Module):
 
 class Bottleneck(nn.Module):
     # Standard bottleneck
-    def __init__(self, in_channel, out_channel, shortcut=True, padding=None, groups=1, expansion=0.5, conv_cfg=dict(type='USConv'), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='LeakyReLU', negative_slope=0.1)):  # ch_in, ch_out, shortcut, groups, expansion
+    def __init__(self, in_channel, out_channel, shortcut=True, padding=None, groups=1, expansion=0.5, conv_cfg=None, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='SiLU')):  # ch_in, ch_out, shortcut, groups, expansion
         super(Bottleneck, self).__init__()
         hidden_channel = int(out_channel * expansion)  # hidden channels
         self.conv1 = ConvModule(in_channel, hidden_channel, 1, 1, autopad(1, padding), conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
