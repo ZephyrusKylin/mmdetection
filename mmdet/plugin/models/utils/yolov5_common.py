@@ -129,9 +129,9 @@ class BottleneckCSP(nn.Module):
 
 
 class Focus(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=None, groups=1, conv_cfg=dict(type='USConv', us=[False, True]), norm_cfg=dict(type='SBN', requires_grad=True), act_cfg=dict(type='SiLU')):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=None, groups=1, conv_cfg=None, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='SiLU')):
         super().__init__()
-        norm_cfg.setdefault('WIDTH_LIST', WIDTH_LIST)
+        # norm_cfg.setdefault('WIDTH_LIST', WIDTH_LIST)
         self.conv_focus = ConvModule(in_channels * 4, out_channels, kernel_size, stride, autopad(kernel_size, padding), groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
     
     def forward(self, x):

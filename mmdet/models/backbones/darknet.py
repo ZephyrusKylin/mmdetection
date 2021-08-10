@@ -7,8 +7,6 @@ from mmcv.cnn import ConvModule
 from mmcv.runner import BaseModule
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmdet.models.utils.yolov5_common import Focus
-from mmdet.models.utils.make_divisible import make_divisible
 from ..builder import BACKBONES
 
 

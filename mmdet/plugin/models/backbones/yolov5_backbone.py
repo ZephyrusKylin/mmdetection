@@ -15,50 +15,6 @@ from mmdet.models.builder import BACKBONES
 from mmdet.plugin.models.utils.yolov5_common import Bottleneck
 
 
-class ResBlock(BaseModule):
-    """The basic residual block used in Darknet. Each ResBlock consists of two
-    ConvModules and the input is added to the final output. Each ConvModule is
-    composed of Conv, BN, and LeakyReLU. In YoloV3 paper, the first convLayer
-    has half of the number of the filters as much as the second convLayer. The
-    first convLayer has filter size of 1x1 and the second one has the filter
-    size of 3x3.
-
-    Args:
-        in_channels (int): The input channels. Must be even.
-        conv_cfg (dict): Config dict for convolution layer. Default: None.
-        norm_cfg (dict): Dictionary to construct and config norm layer.
-            Default: dict(type='BN', requires_grad=True)
-        act_cfg (dict): Config dict for activation layer.
-            Default: dict(type='LeakyReLU', negative_slope=0.1).
-        init_cfg (dict or list[dict], optional): Initialization config dict.
-            Default: None
-    """
-
-    def __init__(self,
-                 in_channels,
-                 conv_cfg=None,
-                 norm_cfg=dict(type='BN', requires_grad=True),
-                 act_cfg=dict(type='LeakyReLU', negative_slope=0.1),
-                 init_cfg=None):
-        super(ResBlock, self).__init__(init_cfg)
-        assert in_channels % 2 == 0  # ensure the in_channels is even
-        half_in_channels = in_channels // 2
-
-        # shortcut
-        cfg = dict(conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
-
-        self.conv1 = ConvModule(in_channels, half_in_channels, 1, **cfg)
-        self.conv2 = ConvModule(
-            half_in_channels, in_channels, 3, padding=1, **cfg)
-
-    def forward(self, x):
-        residual = x
-        out = self.conv1(x)
-        out = self.conv2(out)
-        out = out + residual
-
-        return out
-
 
 class BottleneckCSP(BaseModule):
     
@@ -113,7 +69,7 @@ class BottleneckCSP(BaseModule):
 
         return out
 
-#TODO
+
 class C3(BaseModule):
     def __init__(self,
                  input_channel,
@@ -159,6 +115,7 @@ class SPP(BaseModule):
                  input_channel,
                  output_channel,
                  kernel_sizes=(5, 9, 13),
+                 padding=None,
                  conv_cfg=None,
                  norm_cfg=dict(type='BN', requires_grad=True),
                  act_cfg=dict(type='Hardswish'),
@@ -168,8 +125,8 @@ class SPP(BaseModule):
         cfg = dict(conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
 
         hidden_channel = input_channel // 2  # hidden channels
-        self.conv1 = ConvModule(input_channel, hidden_channel, 1, 1, padding=None, **cfg)
-        self.conv2 = ConvModule(hidden_channel * (len(kernel_sizes) + 1), output_channel, 1, 1, padding=None, **cfg)
+        self.conv1 = ConvModule(input_channel, hidden_channel, 1, 1, padding=autopad(1, padding), **cfg)
+        self.conv2 = ConvModule(hidden_channel * (len(kernel_sizes) + 1), output_channel, 1, 1, padding=autopad(1, padding), **cfg)
         self.pooling_layers = nn.ModuleList([nn.MaxPool2d(kernel_size=x, stride=1, padding=x // 2) for x in kernel_sizes])
     
     def forward(self, x):
@@ -205,7 +162,7 @@ class Darknet_v5(BaseModule):
 
         self.out_indices = out_indices
         self.frozen_stages = frozen_stages
-
+        self.norm_eval = norm_eval
         self.block = self._block[block_name]
 
         cfg = dict(conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)

@@ -119,3 +119,7 @@ work_dirs/
 *.pth
 *.py~
 *.sh~
+
+#run
+runs
+runs/
