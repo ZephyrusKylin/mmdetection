@@ -8,12 +8,40 @@ from mmcv.cnn import ConvModule
 from mmcv.runner import BaseModule
 from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmdet.plugin.models.utils.yolov5_common import Focus, autopad
+from mmdet.plugin.models.utils.yolov5_common import autopad
 from mmdet.models.utils.make_divisible import make_divisible
 from mmdet.models.builder import BACKBONES
 
-from mmdet.plugin.models.utils.yolov5_common import Bottleneck
+class Focus(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=None, groups=1, conv_cfg=None, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='SiLU')):
+        super().__init__()
+        # norm_cfg.setdefault('WIDTH_LIST', WIDTH_LIST)
+        self.conv_focus = ConvModule(in_channels * 4, out_channels, kernel_size, stride, autopad(kernel_size, padding), groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+    
+    def forward(self, x):
+        y = self._focus_transform(x)
+        y = self.conv_focus(y)
+        return y
 
+    @staticmethod
+    def _focus_transform(x):
+        y = torch.cat([x[..., ::2, ::2],
+                       x[..., 1::2, ::2],
+                       x[..., ::2, 1::2],
+                       x[..., 1::2, 1::2]], 1)
+        return y
+
+class Bottleneck(nn.Module):
+    # Standard bottleneck
+    def __init__(self, in_channel, out_channel, shortcut=True, padding=None, groups=1, expansion=0.5, conv_cfg=None, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='SiLU')):  # ch_in, ch_out, shortcut, groups, expansion
+        super(Bottleneck, self).__init__()
+        hidden_channel = int(out_channel * expansion)  # hidden channels
+        self.conv1 = ConvModule(in_channel, hidden_channel, 1, 1, autopad(1, padding), conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.conv2 = ConvModule(hidden_channel, out_channel, 3, 1, autopad(3, padding), groups=groups, conv_cfg=conv_cfg, norm_cfg=norm_cfg, act_cfg=act_cfg)
+        self.add = shortcut and in_channel == out_channel
+
+    def forward(self, x):
+        return x + self.conv2(self.conv1(x)) if self.add else self.conv2(self.conv1(x))
 
 
 class BottleneckCSP(BaseModule):
@@ -148,7 +176,7 @@ class Darknet_v5(BaseModule):
     def __init__(self,
                 depth_multiple,
                 width_multiple,
-                out_indices=(2, 3),
+                out_indices=(2, 3, 4),
                 frozen_stages=-1,
                 round_nearest=8,
                 block_name="BottleneckCSP",
@@ -224,7 +252,7 @@ class Darknet_v5(BaseModule):
             if i in self.out_indices:
                 outs.append(x)
         
-        outs.append(x)
+        # outs.append(x)
         return tuple(outs)
 
     @staticmethod

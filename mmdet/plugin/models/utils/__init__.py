@@ -1,7 +1,5 @@
-from mmdet.models.utils.make_divisible import make_divisible
-
-from .yolov5_common import Focus, USConv, SwitchableBatchNorm2d, Bottleneck, BottleneckCSP
+from .yolov5_common import USConv, SwitchableBatchNorm2d
 
 __all__ = [
-    'make_divisible', 'Focus', 'USConv', 'SwitchableBatchNorm2d', 'Bottleneck', 'BottleneckCSP'
+    'make_divisible', 'USConv', 'SwitchableBatchNorm2d'
 ]
