@@ -1,4 +1,4 @@
-from mmdet.ops import rbbox_iou_iof
+from mmdet.plugin.ops import rbbox_iou_iof
 from .builder import IOU_CALCULATORS
 
 

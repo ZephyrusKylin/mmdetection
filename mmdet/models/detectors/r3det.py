@@ -5,10 +5,10 @@ import numpy as np
 from mmdet.core import rbbox2result, merge_tiles_aug_rbboxes
 from ..builder import DETECTORS, build_backbone, build_head, build_neck
 from .base import BaseDetector
-from mmdet.ops import FeatureRefineModule
+from mmdet.plugin.ops import FeatureRefineModule
 import mmcv
 import warnings
-from mmdet.utils import imshow_det_rbboxes
+from mmdet.plugin.utils import imshow_det_rbboxes
 
 
 @DETECTORS.register_module()
