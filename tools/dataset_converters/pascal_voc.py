@@ -1,7 +1,10 @@
 import argparse
 import os.path as osp
-import xml.etree.ElementTree as ET
-
+try:
+    import xml.etree.cElementTree as ET
+except:
+    import xml.etree.ElementTree as ET
+ 
 import mmcv
 import numpy as np
 
