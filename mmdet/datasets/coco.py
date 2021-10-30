@@ -93,7 +93,7 @@ class CocoDataset(CustomDataset):
         ann_info = self.coco.load_anns(ann_ids)
         return [ann['category_id'] for ann in ann_info]
 
-    def _filter_imgs(self, min_size=32):
+    def _filter_imgs(self, min_size=10):
         """Filter images too small or without ground truths."""
         valid_inds = []
         # obtain images that contain annotation
@@ -508,6 +508,8 @@ class CocoDataset(CustomDataset):
                     # Compute per-category AP
                     # from https://github.com/facebookresearch/detectron2/
                     precisions = cocoEval.eval['precision']
+                    recalls = cocoEval.eval['recall']
+                    scores = cocoEval.eval['scores']
                     # precision: (iou, recall, cls, area range, max dets)
                     assert len(self.cat_ids) == precisions.shape[2]
 
@@ -517,6 +519,14 @@ class CocoDataset(CustomDataset):
                         # max dets index -1: typically 100 per image
                         nm = self.coco.loadCats(catId)[0]
                         precision = precisions[:, :, idx, 0, -1]
+                        pp = precisions[0, :, idx, 0, -1]
+                        recall = np.linspace(.0,
+                                   1.00,
+                                   int(np.round((1.00 - .0) / .01)) + 1,
+                                   endpoint=True)
+                        score = scores[0, :, idx, 0, -1]
+                        # print(*zip(pp, recall, score))
+                        eval_results['PR'] = [*zip(pp, recall, score)]
                         precision = precision[precision > -1]
                         if precision.size:
                             ap = np.mean(precision)
