@@ -515,6 +515,7 @@ class CocoDataset(CustomDataset):
                     assert len(self.cat_ids) == precisions.shape[2]
 
                     results_per_category = []
+                    PR_per_category = list()
                     for idx, catId in enumerate(self.cat_ids):
                         # area range index 0: all area ranges
                         # max dets index -1: typically 100 per image
@@ -527,7 +528,7 @@ class CocoDataset(CustomDataset):
                                    endpoint=True)
                         score = scores[0, :, idx, 0, -1]
                         # print(*zip(pp, recall, score))
-                        eval_results['PR'] = [*zip(pp, recall, score)]
+                        PR_per_category.append([*zip(pp, recall, score)])                        
                         precision = precision[precision > -1]
                         if precision.size:
                             ap = np.mean(precision)
@@ -535,7 +536,8 @@ class CocoDataset(CustomDataset):
                             ap = float('nan')
                         results_per_category.append(
                             (f'{nm["name"]}', f'{float(ap):0.3f}'))
-
+                    PR_res = np.array(PR_per_category)
+                    # eval_results['PR'] = [PR_res]
                     num_columns = min(6, len(results_per_category) * 2)
                     results_flatten = list(
                         itertools.chain(*results_per_category))
