@@ -520,14 +520,14 @@ class CocoDataset(CustomDataset):
                         # max dets index -1: typically 100 per image
                         nm = self.coco.loadCats(catId)[0]
                         precision = precisions[:, :, idx, 0, -1]
-                        pp = precisions[0, :, idx, 0, -1]
-                        recall = np.linspace(.0,
-                                   1.00,
-                                   int(np.round((1.00 - .0) / .01)) + 1,
-                                   endpoint=True)
-                        score = scores[0, :, idx, 0, -1]
+                        # pp = precisions[0, :, idx, 0, -1]
+                        # recall = np.linspace(.0,
+                        #            1.00,
+                        #            int(np.round((1.00 - .0) / .01)) + 1,
+                        #            endpoint=True)
+                        # score = scores[0, :, idx, 0, -1]
                         # print(*zip(pp, recall, score))
-                        eval_results['PR'] = [*zip(pp, recall, score)]
+                        # eval_results['PR'] = [*zip(pp, recall, score)]
                         precision = precision[precision > -1]
                         if precision.size:
                             ap = np.mean(precision)
